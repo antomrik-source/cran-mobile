@@ -1,0 +1,34 @@
+CRAN MOBILE - installation (une seule fois, ~20 min, depuis ton PC perso)
+
+1. METTRE L'APPLI EN LIGNE (GitHub Pages, gratuit)
+   - Cree un compte sur github.com.
+   - Nouveau depot public nomme : cran-mobile
+   - "Add file" > "Upload files" : depose tous les fichiers de ce dossier. Commit.
+   - Settings > Pages > Source : "Deploy from a branch", branche main, dossier / (root). Save.
+   - Ton adresse : https://TON-PSEUDO.github.io/cran-mobile/
+   (Le code est public ; tes donnees ne le sont jamais : elles restent sur ton telephone et ton Drive.)
+
+2. AUTORISER L'ACCES A TON DRIVE (Google Cloud, gratuit)
+   - console.cloud.google.com > nouveau projet "Cran".
+   - API et services > Bibliotheque > "Google Drive API" > Activer.
+   - Ecran de consentement OAuth : Externe. Nom "Cran", ton e-mail.
+     Utilisateurs test : ajoute ton adresse Gmail.
+   - Identifiants > Creer > ID client OAuth > Application Web.
+     Origines JavaScript autorisees : https://TON-PSEUDO.github.io
+     (sans /cran-mobile, sans / final).
+   - Copie l'ID client (xxxx.apps.googleusercontent.com).
+
+3. SUR LE TELEPHONE (Chrome Android)
+   - Ouvre https://TON-PSEUDO.github.io/cran-mobile/
+   - Menu ⋮ > "Ajouter a l'ecran d'accueil" > Installer.
+   - Reglages : colle l'ID client > OK > "Synchroniser maintenant".
+   - Google affiche "appli non validee" : c'est ton appli -> Continuer.
+     Acces demande : uniquement les fichiers crees par Cran.
+   - Le dossier Cran-synchro apparait dans ton Drive.
+
+4. SUR LE PC
+   - Onglet Projets : coche "Sur le telephone" sur tes projets PERSO.
+   - Touche Synchro sur le telephone : ils arrivent.
+
+A savoir : en mode "test", Google peut redemander la connexion de temps en
+temps (bouton Synchro). Les donnees restent utilisables hors ligne.

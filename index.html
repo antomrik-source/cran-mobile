@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#16191d">
+<title>Cran</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><i></i>Cran</div>
+  <select id="projet" aria-label="Projet"></select>
+  <button id="sync" class="sync" aria-label="Synchroniser"><b></b><span>Synchro</span></button>
+</header>
+<main id="vue"></main>
+<nav class="tabs" id="tabs">
+  <button data-view="projets">Projets</button>
+  <button data-view="jour">Ma semaine</button>
+  <button data-view="reglages">Réglages</button>
+</nav>
+<section id="focus" class="focus" hidden></section>
+<dialog id="modale"></dialog>
+<div id="toast" class="toast" role="status"></div>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="app.js"></script>
+</body>
+</html>
