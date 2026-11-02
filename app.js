@@ -130,20 +130,63 @@ function vueJour() {
   <section class="card"><h2>Fait aujourd'hui</h2><div class="mono" style="font-size:32px;font-weight:700">${n}</div>
     ${doneToday(DB.projet || null).map((t) => row(t)).join("")}</section>`;
 }
+/* Vue Fournisseurs : même organisation que sur le PC (liste, frise des jalons, détail du jalon), en lecture seule. */
+let FID = "", JID = "";
+const docDone = (d) => d.statut === "Accepté" || (d.sens === "fournir" && d.statut === "Envoyé");
+const jalonsOf = (f) => L("jalons").filter((j) => j.fournisseur === f).sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+const tasksOfJ = (j) => L("taches").filter((t) => t.jalon === j);
+const docsOfJ = (j, sens) => L("documents").filter((d) => d.jalon === j && (!sens || d.sens === sens));
+const aClasser = (f) => L("taches").filter((t) => t.fournisseur === f && !get("jalons", t.jalon));
+function pctItems(t, d) { const n = t.length + d.length; return n ? Math.round((100 * (t.filter((x) => x.statut === "fait").length + d.filter(docDone).length)) / n) : null; }
+const pctJalon = (j) => pctItems(tasksOfJ(j.uid), docsOfJ(j.uid));
+const pctFour = (f) => { const js = jalonsOf(f.uid); return pctItems([...js.flatMap((j) => tasksOfJ(j.uid)), ...aClasser(f.uid)], js.flatMap((j) => docsOfJ(j.uid))); };
+const jalonOuvert = (f) => jalonsOf(f.uid).find((j) => !j.date_reelle && pctJalon(j) !== 100);
+function frise(f) {
+  const js = jalonsOf(f.uid); if (!js.length) return `<div class="empty">Aucun jalon.</div>`;
+  const W = Math.max(300, js.length * 84), x0 = 44, x1 = W - 44, y = 92, R = 15, C = 2 * Math.PI * R;
+  const X = (i) => (js.length === 1 ? W / 2 : x0 + (i * (x1 - x0)) / (js.length - 1));
+  const split = (s) => { if (s.length <= 13) return [s]; const m = s.lastIndexOf(" ", 13); return m > 0 ? [s.slice(0, m), s.slice(m + 1)] : [s]; };
+  const nodes = js.map((j, i) => {
+    const p = pctJalon(j), sel = j.uid === JID, full = p === 100 || !!j.date_reelle, x = X(i), up = i % 2 === 1;
+    const late = j.date_prevue && !j.date_reelle && daysTo(j.date_prevue) < 0;
+    const lines = split(j.nom), dateTxt = j.date_reelle ? "fait " + fr(j.date_reelle) : fr(j.date_prevue) || "date ?";
+    const ys = up ? lines.map((_, k) => y - 30 - (lines.length - 1 - k) * 14) : lines.map((_, k) => y + 38 + k * 14);
+    const yd = up ? y - 30 - lines.length * 14 : y + 38 + lines.length * 14;
+    return `<g class="node" data-act="pick-jalon" data-id="${j.uid}">
+      <rect x="${x - 40}" y="0" width="80" height="184" fill="transparent"/>
+      <line x1="${x}" y1="${up ? y - R - 4 : y + R + 4}" x2="${x}" y2="${up ? y - 24 : y + 24}" stroke="var(--line)"/>
+      ${sel ? `<circle cx="${x}" cy="${y}" r="${R + 6}" fill="none" stroke="var(--accent)" stroke-width="2"/>` : ""}
+      <circle cx="${x}" cy="${y}" r="${R}" fill="${full ? "var(--ink)" : "var(--surface)"}" stroke="var(--line)" stroke-width="5"/>
+      ${!full && p ? `<circle cx="${x}" cy="${y}" r="${R}" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="${(C * p) / 100} ${C}" transform="rotate(-90 ${x} ${y})"/>` : ""}
+      <text x="${x}" y="${y + 4}" text-anchor="middle" font-size="10" ${full ? 'style="fill:var(--surface)"' : ""}>${full ? "✓" : p === null ? "" : p}</text>
+      ${lines.map((l, k) => `<text x="${x}" y="${ys[k]}" text-anchor="middle" font-size="12" font-weight="${sel ? 700 : 500}">${esc(l)}</text>`).join("")}
+      <text x="${x}" y="${yd}" text-anchor="middle" font-size="10.5" ${late ? 'style="fill:var(--bad)"' : 'style="fill:var(--muted)"'}>${esc(dateTxt)}</text></g>`;
+  }).join("");
+  return `<div class="frise"><svg viewBox="0 0 ${W} 184" width="${W}" height="184" style="fill:var(--ink)"><line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="var(--line)" stroke-width="2"/>${nodes}</svg></div>`;
+}
+function docListM(j, sens) {
+  const ds = docsOfJ(j.uid, sens);
+  return `<div><h2>${sens === "fournir" ? "À fournir" : "À recevoir"}</h2>${ds.length ? ds.map((d) => `<div class="trow"><div class="t ${docDone(d) ? "ok" : ""}">${esc(d.nom)}${d.version ? ` · ${esc(d.version)}` : ""}</div><span class="pill">${esc(d.statut || "")}</span></div>`).join("") : `<div class="muted" style="font-size:13px">Aucun document.</div>`}</div>`;
+}
 function vueFournisseurs() {
   const pid = DB.projet || projets()[0]?.uid;
   const fs = L("fournisseurs").filter((f) => !f.archive && (!pid || f.projet === pid));
   if (!fs.length) return `<div class="empty">Aucun fournisseur sur ce projet.<br><br>Sur le PC, ajoute-les dans l'onglet Fournisseurs, puis touche « Synchro ».</div>`;
-  return fs.map((f) => {
-    const js = L("jalons").filter((j) => j.fournisseur === f.uid).sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
-    return `<section class="card"><h1>${esc(f.nom)}</h1>${f.objet ? `<div class="muted">${esc(f.objet)}</div>` : ""}
-      ${js.map((j) => {
-        const docs = L("documents").filter((d) => d.jalon === j.uid);
-        const date = j.date_reelle ? ` · fait le ${fr(j.date_reelle)}` : j.date_prevue ? ` · prévu le ${fr(j.date_prevue)}` : "";
-        return `<div class="trow"><div class="t"><span><b>${esc(j.nom)}</b>${date}</span>${docs.map((d) => `<span>${esc(d.nom)}${d.sens ? " · " + esc(d.sens) : ""}${d.statut ? " · " + esc(d.statut) : ""}</span>`).join("")}</div></div>`;
-      }).join("") || `<div class="muted">Aucun jalon.</div>`}
-    </section>`;
-  }).join("");
+  if (!fs.some((f) => f.uid === FID)) FID = fs[0].uid;
+  const f = get("fournisseurs", FID);
+  if (!JID || get("jalons", JID)?.fournisseur !== f.uid) JID = (jalonOuvert(f) || jalonsOf(f.uid)[0])?.uid || "";
+  const j = get("jalons", JID), pj = j ? pctJalon(j) : null;
+  const list = `<div class="flist">${fs.map((x) => { const p = pctFour(x);
+    return `<button class="fitem ${x.uid === FID ? "on" : ""}" data-act="pick-four" data-id="${x.uid}"><b>${esc(x.nom)}</b><div class="gauge"><u style="width:${p ?? 0}%"></u></div><span class="mono muted" style="font-size:12px">${p === null ? "–" : p + " %"}</span></button>`; }).join("")}</div>`;
+  const ac = aClasser(f.uid).filter((t) => t.statut !== "fait");
+  return `${list}
+  <section class="card"><div class="row"><div style="flex:1;min-width:0"><h1>${esc(f.nom)}</h1>${f.objet ? `<div class="muted">${esc(f.objet)}</div>` : ""}</div><span class="mono muted">${pctFour(f) ?? 0} %</span></div>${frise(f)}</section>
+  ${ac.length ? `<section class="card"><h2>À classer dans un jalon (${ac.length})</h2>${ac.map((t) => `<div class="trow"><div class="t">${esc(t.titre)}</div></div>`).join("")}</section>` : ""}
+  ${j ? `<section class="card"><div class="row"><h1 style="flex:1;font-size:20px">${esc(j.nom)}</h1><span class="mono">${pj === null ? "Vide" : pj + " %"}</span></div>
+    <div class="gauge"><u style="width:${pj ?? 0}%"></u></div>
+    <div class="muted" style="font-size:13px">${j.date_reelle ? "Fait le " + fr(j.date_reelle) : j.date_prevue ? "Prévu le " + fr(j.date_prevue) : "Date prévue non renseignée"}</div>
+    <div><h2>Tâches</h2>${tasksOfJ(j.uid).map((t) => `<div class="trow ${t.statut === "fait" ? "done" : ""}"><div class="t">${esc(t.titre)}</div></div>`).join("") || `<div class="muted" style="font-size:13px">Aucune tâche.</div>`}</div>
+    ${docListM(j, "fournir")}${docListM(j, "recevoir")}</section>` : ""}`;
 }
 function vueReglages() {
   const origin = location.origin;
@@ -324,6 +367,8 @@ document.addEventListener("click", async (e) => {
     case "toggle": upsert("taches", { ...t, statut: t.statut === "fait" ? "a_faire" : "fait", fait_le: t.statut === "fait" ? "" : stamp(), reprise: t.statut === "fait" ? t.reprise : "" }); if (t.statut !== "fait") toast("Cran franchi."); return render();
     case "edit": return editTask(t);
     case "start": return startFocus(id);
+    case "pick-four": FID = id; JID = ""; return render();
+    case "pick-jalon": JID = id; return render();
     case "ouvrir": DB.projet = id; persist(); VUE = "jour"; return render();
     case "sync": return synchroniser(true);
     case "effacer": if (!b.dataset.arm) { b.dataset.arm = 1; b.textContent = "Confirmer : tout effacer sur ce téléphone"; return; }
