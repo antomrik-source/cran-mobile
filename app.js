@@ -87,7 +87,7 @@ function render() {
   if (DB.projet && !get("projets", DB.projet)) DB.projet = "";
   $("#projet").innerHTML = `<option value="">Tous les projets</option>${projets().map((p) => `<option value="${p.uid}" ${p.uid === DB.projet ? "selected" : ""}>${esc(p.nom)}</option>`).join("")}`;
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.view === VUE));
-  $("#vue").innerHTML = { projets: vueProjets, jour: vueJour, reglages: vueReglages }[VUE]();
+  $("#vue").innerHTML = { projets: vueProjets, jour: vueJour, fournisseurs: vueFournisseurs, reglages: vueReglages }[VUE]();
 }
 function row(x, opts = {}) {
   const t = x.t || x;
@@ -129,6 +129,21 @@ function vueJour() {
   <form class="card add" data-form="tache"><input type="text" name="titre" placeholder="Nouvelle tâche…" required autocomplete="off"><button class="btn">Ajouter</button></form>
   <section class="card"><h2>Fait aujourd'hui</h2><div class="mono" style="font-size:32px;font-weight:700">${n}</div>
     ${doneToday(DB.projet || null).map((t) => row(t)).join("")}</section>`;
+}
+function vueFournisseurs() {
+  const pid = DB.projet || projets()[0]?.uid;
+  const fs = L("fournisseurs").filter((f) => !f.archive && (!pid || f.projet === pid));
+  if (!fs.length) return `<div class="empty">Aucun fournisseur sur ce projet.<br><br>Sur le PC, ajoute-les dans l'onglet Fournisseurs, puis touche « Synchro ».</div>`;
+  return fs.map((f) => {
+    const js = L("jalons").filter((j) => j.fournisseur === f.uid).sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+    return `<section class="card"><h1>${esc(f.nom)}</h1>${f.objet ? `<div class="muted">${esc(f.objet)}</div>` : ""}
+      ${js.map((j) => {
+        const docs = L("documents").filter((d) => d.jalon === j.uid);
+        const date = j.date_reelle ? ` · fait le ${fr(j.date_reelle)}` : j.date_prevue ? ` · prévu le ${fr(j.date_prevue)}` : "";
+        return `<div class="trow"><div class="t"><span><b>${esc(j.nom)}</b>${date}</span>${docs.map((d) => `<span>${esc(d.nom)}${d.sens ? " · " + esc(d.sens) : ""}${d.statut ? " · " + esc(d.statut) : ""}</span>`).join("")}</div></div>`;
+      }).join("") || `<div class="muted">Aucun jalon.</div>`}
+    </section>`;
+  }).join("");
 }
 function vueReglages() {
   const origin = location.origin;
